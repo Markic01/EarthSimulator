@@ -53,6 +53,21 @@ struct PointLight {
     float quadratic;
 };
 
+struct SpotLight {
+    glm::vec3 position;
+    glm::vec3 direction;
+    float cutoff;
+    float outerCutOff;
+
+    glm::vec3 specular;
+    glm::vec3 diffuse;
+    glm::vec3 ambient;
+
+    float constant;
+    float linear;
+    float quadratic;
+};
+
 struct DirectionalLight {
     glm::vec3 direction;
 
@@ -62,19 +77,22 @@ struct DirectionalLight {
 };
 
 struct ProgramState {
-    glm::vec3 clearColor = glm::vec3(0);
+    glm::vec3 clearColor = glm::vec3(0.0f);
     bool ImGuiEnabled = false;
     Camera camera;
     bool CameraMouseMovementUpdateEnabled = true;
     glm::vec3 earthPosition = glm::vec3(0.0f);
     float earthScale = 0.9f;
-    glm::vec3 sunPosition = glm::vec3(0.31, 0.90, 0.86);
+    glm::vec3 sunPosition = glm::vec3(0.31f, 0.90f, 0.86f);
     float sunScale = 0.15f;
-    glm::vec3 moonPosition = glm::vec3(-0.32, 1.73, -0.05);
+    glm::vec3 moonPosition = glm::vec3(-0.32f, 1.73f, -0.05f);
     float moonScale = 0.05f;
 
     DirectionalLight directionalLight;
-    ProgramState(): directionalLight(){
+    SpotLight sunSpotLight;
+    SpotLight moonSpotLight;
+
+    ProgramState(): directionalLight(), sunSpotLight(), moonSpotLight(){
 
     }
 
@@ -228,6 +246,7 @@ int main() {
     // build and compile shaders
     // -------------------------
     Shader modelsShader("resources/shaders/models.vs", "resources/shaders/models.fs");
+    Shader earthShader("resources/shaders/flat_earth.vs", "resources/shaders/flat_earth.fs");
     Shader skyboxShader("resources/shaders/skybox.vs", "resources/shaders/skybox.fs");
 
 
@@ -243,9 +262,34 @@ int main() {
     moonModel.SetShaderTextureNamePrefix("material.");
 
     DirectionalLight& directionalLight = programState->directionalLight;
-    directionalLight.direction = glm::vec3(0.0, -0.5, 0.0);
-    directionalLight.diffuse = glm::vec3(0.6, 0.6, 0.6);
-    directionalLight.specular = glm::vec3(1.0, 1.0, 1.0);
+    directionalLight.direction = glm::vec3(0.0f, -0.5f, 0.0f);
+    directionalLight.ambient = glm::vec3(0.2f);
+    directionalLight.diffuse = glm::vec3(0.6f);
+    directionalLight.specular = glm::vec3(1.0f);
+
+    SpotLight& sunSpotLight = programState->sunSpotLight;
+    sunSpotLight.ambient = glm::vec3(0.1f);
+    sunSpotLight.diffuse = glm::vec3(1.0f);
+    sunSpotLight.specular = glm::vec3(1.0f);
+    sunSpotLight.position = programState->sunPosition;
+    sunSpotLight.direction = programState->earthPosition - programState->sunPosition;
+    sunSpotLight.cutoff = glm::cos(glm::radians(10.5f));
+    sunSpotLight.outerCutOff = glm::cos(glm::radians(12.5f));
+    sunSpotLight.constant = 1.0f;
+    sunSpotLight.linear = 0.35f;
+    sunSpotLight.quadratic = 0.44f;
+
+    SpotLight& moonSpotLight = programState->moonSpotLight;
+    moonSpotLight.ambient = glm::vec3(0.0f);
+    moonSpotLight.diffuse = glm::vec3(0.5f);
+    moonSpotLight.specular = glm::vec3(1.0f);
+    moonSpotLight.position = programState->moonPosition;
+    moonSpotLight.direction = programState->earthPosition - programState->moonPosition;
+    moonSpotLight.cutoff = glm::cos(glm::radians(7.5f));
+    moonSpotLight.outerCutOff = glm::cos(glm::radians(10.5f));
+    moonSpotLight.constant = 1.0f;
+    moonSpotLight.linear = 0.22f;
+    moonSpotLight.quadratic = 0.20f;
 
     vector<std::string> faces {
             FileSystem::getPath("resources/textures/skybox/stars_right.png"),
@@ -278,17 +322,7 @@ int main() {
         glClearColor(programState->clearColor.r, programState->clearColor.g, programState->clearColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        directionalLight.ambient = glm::vec3(0.2, 0.2, 0.2);
-
-        // don't forget to enable shader before setting uniforms
         modelsShader.use();
-        modelsShader.setVec3("directionalLight.direction", directionalLight.direction);
-        modelsShader.setVec3("directionalLight.ambient", directionalLight.ambient);
-        modelsShader.setVec3("directionalLight.diffuse", directionalLight.diffuse);
-        modelsShader.setVec3("directionalLight.specular", directionalLight.specular);
-        modelsShader.setVec3("viewPosition", programState->camera.Position);
-        modelsShader.setFloat("material.shininess", 32.0f);
-        modelsShader.setVec3("material.specular", 0.05f);
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(programState->camera.Zoom),
                                                 (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
@@ -296,30 +330,61 @@ int main() {
         modelsShader.setMat4("projection", projection);
         modelsShader.setMat4("view", view);
 
-        // render the flatEarth model
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model,programState->earthPosition); // translate it down, so it's at the center of the scene
-        model = glm::scale(model, glm::vec3(programState->earthScale));    // it's a bit too big for our scene, so scale it down
-        modelsShader.setMat4("model", model);
-        earthModel.Draw(modelsShader);
-
         // render the sun model
-        programState->sunPosition=glm::vec3(sin(glfwGetTime())-0.2,1,cos(glfwGetTime()));
-        model = glm::mat4(1.0f);
-        model = glm::translate(model,programState->sunPosition); // translate it down, so it's at the center of the scene
-        model = glm::scale(model, glm::vec3(programState->sunScale));    // it's a bit too big for our scene, so scale it down
+        programState->sunPosition=glm::vec3(sin(glfwGetTime())-0.2,1.0f,cos(glfwGetTime()));
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model,programState->sunPosition);
+        model = glm::scale(model, glm::vec3(programState->sunScale));
         modelsShader.setMat4("model", model);
-        directionalLight.ambient = glm::vec3(1); //make sun and moon fully illuminated
-        modelsShader.setVec3("directionalLight.ambient", directionalLight.ambient);
         sunModel.Draw(modelsShader);
 
         // render the moon model
-        programState->moonPosition=glm::vec3(-sin(glfwGetTime())-0.2,1,-cos(glfwGetTime()));
+        programState->moonPosition=glm::vec3(-sin(glfwGetTime())-0.2f,1.0f,-cos(glfwGetTime()));
         model = glm::mat4(1.0f);
-        model = glm::translate(model,programState->moonPosition); // translate it down, so it's at the center of the scene
-        model = glm::scale(model, glm::vec3(programState->moonScale));    // it's a bit too big for our scene, so scale it down
+        model = glm::translate(model,programState->moonPosition);
+        model = glm::scale(model, glm::vec3(programState->moonScale));
         modelsShader.setMat4("model", model);
         moonModel.Draw(modelsShader);
+
+        earthShader.use();
+        earthShader.setVec3("directionalLight.direction", directionalLight.direction);
+        earthShader.setVec3("directionalLight.ambient", directionalLight.ambient);
+        earthShader.setVec3("directionalLight.diffuse", directionalLight.diffuse);
+        earthShader.setVec3("directionalLight.specular", directionalLight.specular);
+        earthShader.setVec3("sunLight.ambient", sunSpotLight.ambient);
+        earthShader.setVec3("sunLight.diffuse", sunSpotLight.diffuse);
+        earthShader.setVec3("sunLight.specular", sunSpotLight.specular);
+        earthShader.setVec3("sunLight.position", programState->sunPosition);
+        earthShader.setVec3("sunLight.direction", glm::vec3(sin(glfwGetTime())/5.0f-0.2f,-1.0f,cos(glfwGetTime())/5.0f) - programState->sunPosition);
+        earthShader.setFloat("sunLight.cutOff", sunSpotLight.cutoff);
+        earthShader.setFloat("sunLight.outerCutOff", sunSpotLight.outerCutOff);
+        earthShader.setFloat("sunLight.constant", sunSpotLight.constant);
+        earthShader.setFloat("sunLight.linear", sunSpotLight.linear);
+        earthShader.setFloat("sunLight.quadratic", sunSpotLight.quadratic);
+
+        earthShader.setVec3("moonLight.ambient", moonSpotLight.ambient);
+        earthShader.setVec3("moonLight.diffuse", moonSpotLight.diffuse);
+        earthShader.setVec3("moonLight.specular", moonSpotLight.specular);
+        earthShader.setVec3("moonLight.position", programState->moonPosition);
+        earthShader.setVec3("moonLight.direction", glm::vec3(-sin(glfwGetTime())/4.0f-0.2f,-1.0f,-cos(glfwGetTime())/4.0f) - programState->moonPosition);
+        earthShader.setFloat("moonLight.cutOff", moonSpotLight.cutoff);
+        earthShader.setFloat("moonLight.outerCutOff", moonSpotLight.outerCutOff);
+        earthShader.setFloat("moonLight.constant", moonSpotLight.constant);
+        earthShader.setFloat("moonLight.linear", moonSpotLight.linear);
+        earthShader.setFloat("moonLight.quadratic", moonSpotLight.quadratic);
+
+        earthShader.setVec3("viewPosition", programState->camera.Position);
+        earthShader.setFloat("material.shininess", 32.0f);
+        earthShader.setVec3("material.specular", 0.05f);
+        earthShader.setMat4("projection", projection);
+        earthShader.setMat4("view", view);
+
+        // render the flatEarth model
+        model = glm::mat4(1.0f);
+        model = glm::translate(model,programState->earthPosition);
+        model = glm::scale(model, glm::vec3(programState->earthScale));
+        earthShader.setMat4("model", model);
+        earthModel.Draw(earthShader);
 
         // draw skybox
         glDepthMask(GL_FALSE);
