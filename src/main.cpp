@@ -234,6 +234,7 @@ int main() {
         earthModel.Draw(modelsShader);
 
         // render the sun model
+        programState->sunPosition=glm::vec3(sin(glfwGetTime())-0.2,1,cos(glfwGetTime()));
         model = glm::mat4(1.0f);
         model = glm::translate(model,programState->sunPosition); // translate it down, so it's at the center of the scene
         model = glm::scale(model, glm::vec3(programState->sunScale));    // it's a bit too big for our scene, so scale it down
@@ -243,6 +244,7 @@ int main() {
         sunModel.Draw(modelsShader);
 
         // render the moon model
+        programState->moonPosition=glm::vec3(-sin(glfwGetTime())-0.2,1,-cos(glfwGetTime()));
         model = glm::mat4(1.0f);
         model = glm::translate(model,programState->moonPosition); // translate it down, so it's at the center of the scene
         model = glm::scale(model, glm::vec3(programState->moonScale));    // it's a bit too big for our scene, so scale it down
