@@ -41,18 +41,6 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-struct PointLight {
-    glm::vec3 position;
-
-    glm::vec3 ambient;
-    glm::vec3 diffuse;
-    glm::vec3 specular;
-
-    float constant;
-    float linear;
-    float quadratic;
-};
-
 struct SpotLight {
     glm::vec3 position;
     glm::vec3 direction;
@@ -77,7 +65,6 @@ struct DirectionalLight {
 };
 
 struct ProgramState {
-    glm::vec3 clearColor = glm::vec3(0.0f);
     bool ImGuiEnabled = false;
     Camera camera;
     bool CameraMouseMovementUpdateEnabled = true;
@@ -103,10 +90,7 @@ struct ProgramState {
 
 void ProgramState::SaveToFile(const std::string &filename) const {
     std::ofstream out(filename);
-    out << clearColor.r << '\n'
-        << clearColor.g << '\n'
-        << clearColor.b << '\n'
-        << camera.Position.x << '\n'
+    out << camera.Position.x << '\n'
         << camera.Position.y << '\n'
         << camera.Position.z << '\n'
         << camera.Front.x << '\n'
@@ -117,10 +101,7 @@ void ProgramState::SaveToFile(const std::string &filename) const {
 void ProgramState::LoadFromFile(const std::string &filename) {
     std::ifstream in(filename);
     if (in) {
-        in >> clearColor.r
-           >> clearColor.g
-           >> clearColor.b
-           >> camera.Position.x
+        in >> camera.Position.x
            >> camera.Position.y
            >> camera.Position.z
            >> camera.Front.x
@@ -319,7 +300,6 @@ int main() {
 
         // render
         // ------
-        glClearColor(programState->clearColor.r, programState->clearColor.g, programState->clearColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         modelsShader.use();
@@ -480,13 +460,12 @@ void DrawImGui() {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    static float f = 0.0f;
-    ImGui::Begin("Hello window");
-    ImGui::Text("Hello text");
-    ImGui::SliderFloat("Float slider", &f, 0.0, 1.0);
-    ImGui::ColorEdit3("Background color", (float *) &programState->clearColor);
-    ImGui::DragFloat3("Earth position", (float*)&programState->earthPosition);
-    ImGui::DragFloat("Earth scale", &programState->earthScale, 0.05, 0.1, 4.0);
+    ImGui::Begin("Flat Earth Simulator");
+    ImGui::DragFloat3("Earth position", (float*)&programState->earthPosition,0.05f);
+    ImGui::DragFloat("Earth scale", &programState->earthScale, 0.05f, 0.1f, 4.0f);
+    ImGui::DragFloat("Sun constant factor", &programState->sunSpotLight.constant, 0.05f);
+    ImGui::DragFloat("Sun linear factor", &programState->sunSpotLight.linear, 0.01f);
+    ImGui::DragFloat("Sun quadratic factor", &programState->sunSpotLight.quadratic, 0.001f);
     ImGui::End();
 
     ImGui::Begin("Camera info");
@@ -494,7 +473,6 @@ void DrawImGui() {
     ImGui::Text("Camera position: (%f, %f, %f)", c.Position.x, c.Position.y, c.Position.z);
     ImGui::Text("(Yaw, Pitch): (%f, %f)", c.Yaw, c.Pitch);
     ImGui::Text("Camera front: (%f, %f, %f)", c.Front.x, c.Front.y, c.Front.z);
-    ImGui::Checkbox("Camera mouse update", &programState->CameraMouseMovementUpdateEnabled);
     ImGui::End();
 
     ImGui::Render();
