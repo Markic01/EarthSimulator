@@ -41,6 +41,7 @@ float lastFrame = 0.0f;
 
 struct PointLight {
     glm::vec3 position;
+
     glm::vec3 ambient;
     glm::vec3 diffuse;
     glm::vec3 specular;
@@ -50,6 +51,14 @@ struct PointLight {
     float quadratic;
 };
 
+struct DirectionalLight {
+    glm::vec3 direction;
+
+    glm::vec3 ambient;
+    glm::vec3 diffuse;
+    glm::vec3 specular;
+};
+
 struct ProgramState {
     glm::vec3 clearColor = glm::vec3(0);
     bool ImGuiEnabled = false;
@@ -57,8 +66,8 @@ struct ProgramState {
     bool CameraMouseMovementUpdateEnabled = true;
     glm::vec3 earthPosition = glm::vec3(0.0f);
     float earthScale = 1.0f;
-    PointLight pointLight;
-    ProgramState(): pointLight(){
+    DirectionalLight directionalLight;
+    ProgramState(): directionalLight(){
 
     }
 
@@ -159,15 +168,11 @@ int main() {
     Model earthModel("resources/objects/earth/flat_earth.obj");
     earthModel.SetShaderTextureNamePrefix("material.");
 
-    PointLight& pointLight = programState->pointLight;
-    pointLight.position = glm::vec3(4.0f, 4.0, 0.0);
-    pointLight.ambient = glm::vec3(0.1, 0.1, 0.1);
-    pointLight.diffuse = glm::vec3(0.6, 0.6, 0.6);
-    pointLight.specular = glm::vec3(1.0, 1.0, 1.0);
-
-    pointLight.constant = 1.0f;
-    pointLight.linear = 0.09f;
-    pointLight.quadratic = 0.032f;
+    DirectionalLight& directionalLight = programState->directionalLight;
+    directionalLight.direction = glm::vec3(0.0, -0.5, 0.0);
+    directionalLight.ambient = glm::vec3(0.2, 0.2, 0.2);
+    directionalLight.diffuse = glm::vec3(0.6, 0.6, 0.6);
+    directionalLight.specular = glm::vec3(1.0, 1.0, 1.0);
 
     // render loop
     // -----------
@@ -189,14 +194,10 @@ int main() {
 
         // don't forget to enable shader before setting uniforms
         earthShader.use();
-        pointLight.position = glm::vec3(4.0 * cos(currentFrame), 4.0f, 4.0 * sin(currentFrame));
-        earthShader.setVec3("pointLight.position", pointLight.position);
-        earthShader.setVec3("pointLight.ambient", pointLight.ambient);
-        earthShader.setVec3("pointLight.diffuse", pointLight.diffuse);
-        earthShader.setVec3("pointLight.specular", pointLight.specular);
-        earthShader.setFloat("pointLight.constant", pointLight.constant);
-        earthShader.setFloat("pointLight.linear", pointLight.linear);
-        earthShader.setFloat("pointLight.quadratic", pointLight.quadratic);
+        earthShader.setVec3("directionalLight.direction", directionalLight.direction);
+        earthShader.setVec3("directionalLight.ambient", directionalLight.ambient);
+        earthShader.setVec3("directionalLight.diffuse", directionalLight.diffuse);
+        earthShader.setVec3("directionalLight.specular", directionalLight.specular);
         earthShader.setVec3("viewPosition", programState->camera.Position);
         earthShader.setFloat("material.shininess", 32.0f);
         earthShader.setVec3("material.specular", 0.05f);
@@ -299,10 +300,6 @@ void DrawImGui() {
     ImGui::ColorEdit3("Background color", (float *) &programState->clearColor);
     ImGui::DragFloat3("Earth position", (float*)&programState->earthPosition);
     ImGui::DragFloat("Earth scale", &programState->earthScale, 0.05, 0.1, 4.0);
-
-    ImGui::DragFloat("pointLight.constant", &programState->pointLight.constant, 0.05, 0.0, 1.0);
-    ImGui::DragFloat("pointLight.linear", &programState->pointLight.linear, 0.05, 0.0, 1.0);
-    ImGui::DragFloat("pointLight.quadratic", &programState->pointLight.quadratic, 0.05, 0.0, 1.0);
     ImGui::End();
 
     ImGui::Begin("Camera info");
