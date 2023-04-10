@@ -65,7 +65,12 @@ struct ProgramState {
     Camera camera;
     bool CameraMouseMovementUpdateEnabled = true;
     glm::vec3 earthPosition = glm::vec3(0.0f);
-    float earthScale = 1.0f;
+    float earthScale = 0.9f;
+    glm::vec3 sunPosition = glm::vec3(0.31, 0.90, 0.86);
+    float sunScale = 0.15f;
+    glm::vec3 moonPosition = glm::vec3(-0.32, 1.73, -0.05);
+    float moonScale = 0.05f;
+
     DirectionalLight directionalLight;
     ProgramState(): directionalLight(){
 
@@ -167,16 +172,21 @@ int main() {
 
     // build and compile shaders
     // -------------------------
-    Shader earthShader("resources/shaders/flat_earth.vs", "resources/shaders/flat_earth.fs");
+    Shader modelsShader("resources/shaders/models.vs", "resources/shaders/models.fs");
 
     // load models
     // -----------
     Model earthModel("resources/objects/earth/flat_earth.obj");
     earthModel.SetShaderTextureNamePrefix("material.");
 
+    Model sunModel("resources/objects/sun/sun.obj");
+    sunModel.SetShaderTextureNamePrefix("material.");
+
+    Model moonModel("resources/objects/moon/moon.obj");
+    moonModel.SetShaderTextureNamePrefix("material.");
+
     DirectionalLight& directionalLight = programState->directionalLight;
     directionalLight.direction = glm::vec3(0.0, -0.5, 0.0);
-    directionalLight.ambient = glm::vec3(0.2, 0.2, 0.2);
     directionalLight.diffuse = glm::vec3(0.6, 0.6, 0.6);
     directionalLight.specular = glm::vec3(1.0, 1.0, 1.0);
 
@@ -198,28 +208,46 @@ int main() {
         glClearColor(programState->clearColor.r, programState->clearColor.g, programState->clearColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        directionalLight.ambient = glm::vec3(0.2, 0.2, 0.2);
+
         // don't forget to enable shader before setting uniforms
-        earthShader.use();
-        earthShader.setVec3("directionalLight.direction", directionalLight.direction);
-        earthShader.setVec3("directionalLight.ambient", directionalLight.ambient);
-        earthShader.setVec3("directionalLight.diffuse", directionalLight.diffuse);
-        earthShader.setVec3("directionalLight.specular", directionalLight.specular);
-        earthShader.setVec3("viewPosition", programState->camera.Position);
-        earthShader.setFloat("material.shininess", 32.0f);
-        earthShader.setVec3("material.specular", 0.05f);
+        modelsShader.use();
+        modelsShader.setVec3("directionalLight.direction", directionalLight.direction);
+        modelsShader.setVec3("directionalLight.ambient", directionalLight.ambient);
+        modelsShader.setVec3("directionalLight.diffuse", directionalLight.diffuse);
+        modelsShader.setVec3("directionalLight.specular", directionalLight.specular);
+        modelsShader.setVec3("viewPosition", programState->camera.Position);
+        modelsShader.setFloat("material.shininess", 32.0f);
+        modelsShader.setVec3("material.specular", 0.05f);
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(programState->camera.Zoom),
                                                 (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = programState->camera.GetViewMatrix();
-        earthShader.setMat4("projection", projection);
-        earthShader.setMat4("view", view);
+        modelsShader.setMat4("projection", projection);
+        modelsShader.setMat4("view", view);
 
-        // render the loaded model
+        // render the flatEarth model
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model,programState->earthPosition); // translate it down, so it's at the center of the scene
         model = glm::scale(model, glm::vec3(programState->earthScale));    // it's a bit too big for our scene, so scale it down
-        earthShader.setMat4("model", model);
-        earthModel.Draw(earthShader);
+        modelsShader.setMat4("model", model);
+        earthModel.Draw(modelsShader);
+
+        // render the sun model
+        model = glm::mat4(1.0f);
+        model = glm::translate(model,programState->sunPosition); // translate it down, so it's at the center of the scene
+        model = glm::scale(model, glm::vec3(programState->sunScale));    // it's a bit too big for our scene, so scale it down
+        modelsShader.setMat4("model", model);
+        directionalLight.ambient = glm::vec3(1); //make sun and moon fully illuminated
+        modelsShader.setVec3("directionalLight.ambient", directionalLight.ambient);
+        sunModel.Draw(modelsShader);
+
+        // render the moon model
+        model = glm::mat4(1.0f);
+        model = glm::translate(model,programState->moonPosition); // translate it down, so it's at the center of the scene
+        model = glm::scale(model, glm::vec3(programState->moonScale));    // it's a bit too big for our scene, so scale it down
+        modelsShader.setMat4("model", model);
+        moonModel.Draw(modelsShader);
 
         if (programState->ImGuiEnabled)
             DrawImGui();
