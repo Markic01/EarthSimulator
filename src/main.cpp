@@ -298,6 +298,7 @@ int main() {
     Shader earthShader("resources/shaders/flat_earth.vs", "resources/shaders/flat_earth.fs");
     Shader skyboxShader("resources/shaders/skybox.vs", "resources/shaders/skybox.fs");
     Shader boxShader("resources/shaders/cube.vs","resources/shaders/cube.fs");
+    Shader birdShader("resources/shaders/bird.vs","resources/shaders/bird.fs");
 
     // load models
     // -----------
@@ -309,6 +310,9 @@ int main() {
 
     Model moonModel("resources/objects/moon/moon.obj");
     moonModel.SetShaderTextureNamePrefix("material.");
+
+    Model birdModel("resources/objects/bird/bird.obj");
+    birdModel.SetShaderTextureNamePrefix("material.");
 
     DirectionalLight& directionalLight = programState->directionalLight;
     directionalLight.direction = glm::vec3(0.0f, -0.5f, 0.0f);
@@ -488,6 +492,16 @@ int main() {
             boxShader.setMat4("model", model);
             glBindVertexArray(cubeVAO);
             glDrawArrays(GL_TRIANGLES, 0, 36);
+
+            birdShader.use();
+            birdShader.setMat4("projection", projection);
+            birdShader.setMat4("view", view);
+            model = glm::mat4(1.0f);
+            model = glm::translate(model,glm::vec3(2.0f, 2.0f, 1.5f));
+            model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0,0,-1));
+            model = glm::scale(model, glm::vec3(0.01f));
+            birdShader.setMat4("model", model);
+            birdModel.Draw(birdShader);
         }
 
         // draw skybox
@@ -653,11 +667,9 @@ bool isCameraInside(vector<tuple<float, float, float, float>> &planes, glm::vec3
         float first= calculateValue(planes[i],cameraPos);
         float second = calculateValue(planes[i+1],cameraPos);
         if(first*second<0){
-            std::cout<<"nije\n";
             return false;
         }
     }
-    std::cout<<"unutra je\n";
     return true;
 }
 
