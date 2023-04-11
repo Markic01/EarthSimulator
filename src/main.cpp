@@ -25,6 +25,12 @@ void processInput(GLFWwindow *window);
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
 
+bool isCameraInside(vector<tuple<float, float, float, float>> &planes, glm::vec3 cameraPos);
+
+tuple<float, float, float, float> calculatePlane(glm::vec3 &a, glm::vec3 &b, glm::vec3 &c);
+
+float calculateValue(tuple<float, float, float, float> &plane, glm::vec3 pos);
+
 unsigned int loadCubemap(vector<std::string> &faces);
 
 // settings
@@ -171,6 +177,68 @@ int main() {
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
 
+    float vertices[] = {
+            // position                       color
+            // back face
+            -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+            0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+            0.5f,  0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+            0.5f,  0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+            -0.5f,  0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+            -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+            // front face
+            -0.5f, -0.5f,  0.5f, 1.0f, 0.0f, 0.0f,
+            0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 0.0f,
+            0.5f, -0.5f,  0.5f, 1.0f, 0.0f, 0.0f,
+            0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 0.0f,
+            -0.5f, -0.5f,  0.5f, 1.0f, 0.0f, 0.0f,
+            -0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 0.0f,
+            // left face
+            -0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f,
+            -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+            -0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+            -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+            -0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f,
+            -0.5f, -0.5f,  0.5f, 0.0f, 1.0f, 0.0f,
+            // right face
+            0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f,
+            0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+            0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+            0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+            0.5f, -0.5f,  0.5f, 0.0f, 1.0f, 0.0f,
+            0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f,
+            // bottom face
+            -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+            0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f,
+            0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+            0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+            -0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f,
+            // top face
+            -0.5f,  0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+            0.5f,  0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+            0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f,
+            0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f,
+            -0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f,
+            -0.5f,  0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+    };
+
+    unsigned int VBO, cubeVAO;
+    glGenVertexArrays(1, &cubeVAO);
+    glGenBuffers(1, &VBO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glBindVertexArray(cubeVAO);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3*sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    std::vector<tuple<float,float,float,float>> planes;
+
     float skyboxVertices[] = {
             -1.0f,  1.0f, -1.0f,
             -1.0f, -1.0f, -1.0f,
@@ -229,7 +297,7 @@ int main() {
     Shader modelsShader("resources/shaders/models.vs", "resources/shaders/models.fs");
     Shader earthShader("resources/shaders/flat_earth.vs", "resources/shaders/flat_earth.fs");
     Shader skyboxShader("resources/shaders/skybox.vs", "resources/shaders/skybox.fs");
-
+    Shader boxShader("resources/shaders/cube.vs","resources/shaders/cube.fs");
 
     // load models
     // -----------
@@ -285,6 +353,7 @@ int main() {
     skyboxShader.use();
     skyboxShader.setInt("skybox", 0);
 
+    bool firstPass=true;
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window)) {
@@ -365,6 +434,61 @@ int main() {
         model = glm::scale(model, glm::vec3(programState->earthScale));
         earthShader.setMat4("model", model);
         earthModel.Draw(earthShader);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(2.0f));  //could be randomized
+        model = glm::scale(model, glm::vec3(1.0f));
+        if(firstPass){
+            glm::vec3 a,b,c;
+            // bottom face
+            a=model*glm::vec4(vertices[144 + 0 * 6], vertices[144 + 0 * 6 + 1], vertices[144 + 0 * 6 + 2],1.0);
+            b=model*glm::vec4(vertices[144 + 1 * 6], vertices[144 + 1 * 6 + 1], vertices[144 + 1 * 6 + 2],1.0);
+            c=model*glm::vec4(vertices[144 + 2 * 6], vertices[144 + 2 * 6 + 1], vertices[144 + 2 * 6 + 2],1.0);
+            planes.push_back(calculatePlane(a,b,c));
+
+            // top face
+            a=model*glm::vec4(vertices[180 + 0 * 6], vertices[180 + 0 * 6 + 1], vertices[180 + 0 * 6 + 2],1.0);
+            b=model*glm::vec4(vertices[180 + 1 * 6], vertices[180 + 1 * 6 + 1], vertices[180 + 1 * 6 + 2],1.0);
+            c=model*glm::vec4(vertices[180 + 2 * 6], vertices[180 + 2 * 6 + 1], vertices[180 + 2 * 6 + 2],1.0);
+            planes.push_back(calculatePlane(a,b,c));
+
+            // left face
+            a=model*glm::vec4(vertices[72 + 0 * 6], vertices[72 + 0 * 6 + 1], vertices[72 + 0 * 6 + 2],1.0);
+            b=model*glm::vec4(vertices[72 + 1 * 6], vertices[72 + 1 * 6 + 1], vertices[72 + 1 * 6 + 2],1.0);
+            c=model*glm::vec4(vertices[72 + 2 * 6], vertices[72 + 2 * 6 + 1], vertices[72 + 2 * 6 + 2],1.0);
+            planes.push_back(calculatePlane(a,b,c));
+
+            // right face
+            a=model*glm::vec4(vertices[108 + 0 * 6], vertices[108 + 0 * 6 + 1], vertices[108 + 0 * 6 + 2],1.0);
+            b=model*glm::vec4(vertices[108 + 1 * 6], vertices[108 + 1 * 6 + 1], vertices[108 + 1 * 6 + 2],1.0);
+            c=model*glm::vec4(vertices[108 + 2 * 6], vertices[108 + 2 * 6 + 1], vertices[108 + 2 * 6 + 2],1.0);
+            planes.push_back(calculatePlane(a,b,c));
+
+            // front face
+            a=model*glm::vec4(vertices[36 + 0 * 6], vertices[36 + 0 * 6 + 1], vertices[36 + 0 * 6 + 2],1.0);
+            b=model*glm::vec4(vertices[36 + 1 * 6], vertices[36 + 1 * 6 + 1], vertices[36 + 1 * 6 + 2],1.0);
+            c=model*glm::vec4(vertices[36 + 2 * 6], vertices[36 + 2 * 6 + 1], vertices[36 + 2 * 6 + 2],1.0);
+            planes.push_back(calculatePlane(a,b,c));
+
+            // back face
+            a=model*glm::vec4(vertices[0 + 0 * 6], vertices[0 + 0 * 6 + 1], vertices[0 + 0 * 6 + 2],1.0);
+            b=model*glm::vec4(vertices[0 + 1 * 6], vertices[0 + 1 * 6 + 1], vertices[0 + 1 * 6 + 2],1.0);
+            c=model*glm::vec4(vertices[0 + 2 * 6], vertices[0 + 2 * 6 + 1], vertices[0 + 2 * 6 + 2],1.0);
+            planes.push_back(calculatePlane(a,b,c));
+
+            firstPass=false;
+        }
+
+        if(isCameraInside(planes, programState->camera.Position)) {
+            boxShader.use();
+            projection = glm::perspective(glm::radians(programState->camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+            view = programState->camera.GetViewMatrix();
+            boxShader.setMat4("projection", projection);
+            boxShader.setMat4("view", view);
+            boxShader.setMat4("model", model);
+            glBindVertexArray(cubeVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
 
         // draw skybox
         glDepthMask(GL_FALSE);
@@ -521,4 +645,36 @@ unsigned int loadCubemap(vector<std::string> &faces)
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
     return textureID;
+}
+
+bool isCameraInside(vector<tuple<float, float, float, float>> &planes, glm::vec3 cameraPos)
+{
+    for(int i=0;i<planes.size();i+=2){
+        float first= calculateValue(planes[i],cameraPos);
+        float second = calculateValue(planes[i+1],cameraPos);
+        if(first*second<0){
+            std::cout<<"nije\n";
+            return false;
+        }
+    }
+    std::cout<<"unutra je\n";
+    return true;
+}
+
+tuple<float, float, float, float> calculatePlane(glm::vec3 &a, glm::vec3 &b, glm::vec3 &c){
+    tuple<float, float, float, float> result;
+    glm::vec3 ab = b-a;
+    glm::vec3 ac = c-a;
+    glm::vec3 cross = glm::cross(ab,ac);
+    get<0>(result)=cross.x;
+    get<1>(result)=cross.y;
+    get<2>(result)=cross.z;
+    get<3>(result)=-(a.x*cross.x+a.y*cross.y+a.z*cross.z);
+
+    // result = (a,b,c,d) <=> ax+by+cz+d=0 for all points on a plane that contains a, b and c
+    return result;
+}
+
+float calculateValue(tuple<float, float, float, float> &plane, glm::vec3 pos){
+    return get<0>(plane)*pos.x+get<1>(plane)*pos.y+get<2>(plane)*pos.z+get<3>(plane);
 }
