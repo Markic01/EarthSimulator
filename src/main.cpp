@@ -80,6 +80,9 @@ struct ProgramState {
     float sunScale = 0.15f;
     glm::vec3 moonPosition = glm::vec3(-0.32f, 1.73f, -0.05f);
     float moonScale = 0.05f;
+    glm::vec3 birdPosition = glm::vec3(2.0f, 2.0f, 1.5f);
+    float birdScale = 0.01f;
+    glm::vec3 karambitPosition = glm::vec3 (1.96f, 1.99f, 2.02f);
 
     DirectionalLight directionalLight;
     SpotLight sunSpotLight;
@@ -314,6 +317,9 @@ int main() {
     Model birdModel("resources/objects/bird/bird.obj");
     birdModel.SetShaderTextureNamePrefix("material.");
 
+    Model karambitModel("resources/objects/karambit/karambit.obj");
+    karambitModel.SetShaderTextureNamePrefix("material.");
+
     DirectionalLight& directionalLight = programState->directionalLight;
     directionalLight.direction = glm::vec3(0.0f, -0.5f, 0.0f);
     directionalLight.ambient = glm::vec3(0.2f);
@@ -497,11 +503,17 @@ int main() {
             birdShader.setMat4("projection", projection);
             birdShader.setMat4("view", view);
             model = glm::mat4(1.0f);
-            model = glm::translate(model,glm::vec3(2.0f, 2.0f, 1.5f));
+            model = glm::translate(model,programState->birdPosition);
             model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0,0,-1));
-            model = glm::scale(model, glm::vec3(0.01f));
+            model = glm::scale(model, glm::vec3(programState->birdScale));
             birdShader.setMat4("model", model);
             birdModel.Draw(birdShader);
+
+            model = glm::mat4(1.0f);
+            model = glm::translate(model,programState->karambitPosition);
+            model = glm::rotate(model, glm::radians(170.0f), glm::vec3(0,0,-1));
+            birdShader.setMat4("model", model);
+            karambitModel.Draw(birdShader);
         }
 
         // draw skybox
