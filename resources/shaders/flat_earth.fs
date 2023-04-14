@@ -26,6 +26,7 @@ struct SpotLight {
 
 struct Material {
     sampler2D texture_diffuse1;
+    sampler2D texture_normal1;
     vec3 specular;
 
     float shininess;
@@ -91,6 +92,10 @@ vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal, vec3 fragPos, vec
 
 void main()
 {
+//     vec3 normal = texture(material.texture_normal1, TexCoords).rgb;
+//     normal = normalize(normal * 2.0 - 1.0);
+//     tried implementing normal mapping but the outcome wasn't as expected :(
+
     vec3 normal = normalize(Normal);
     vec3 viewDir = normalize(viewPosition - FragPos);
     vec3 result = CalcDirectionalLight(directionalLight, normal, FragPos, viewDir);
