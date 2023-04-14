@@ -43,12 +43,9 @@ public:
     unsigned int VAO;
     std::string glslIdentifierPrefix;
     // constructor
-    Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures)
+    Mesh(const vector<Vertex> &vertices, const vector<unsigned int> &indices, const vector<Texture> &textures)
+    : vertices(vertices), indices(indices), textures(textures)
     {
-        this->vertices = vertices;
-        this->indices = indices;
-        this->textures = textures;
-
         // now that we have all the required data, set the vertex buffers and its attribute pointers.
         setupMesh();
     }

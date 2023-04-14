@@ -18,18 +18,17 @@
 #include <sstream>
 #include <iostream>
 #include <map>
+#include <unordered_map>
 #include <vector>
 using namespace std;
 
 unsigned int TextureFromFile(const char *path, const string &directory, bool gamma = false);
 
-
-
 class Model
 {
 public:
     // model data
-    vector<Texture> textures_loaded;	// stores all the textures loaded so far, optimization to make sure textures aren't loaded more than once.
+    unordered_map<string, Texture> loaded_textures_map;
     vector<Mesh>    meshes;
     string directory;
     bool gammaCorrection;
@@ -164,17 +163,13 @@ private:
 
 
         // 1. diffuse maps
-        vector<Texture> diffuseMaps = loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
-        textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
+        loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse", textures);
         // 2. specular maps
-        vector<Texture> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular");
-        textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
+        loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular", textures);
         // 3. normal maps
-        std::vector<Texture> normalMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal");
-        textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
+        loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal", textures);
         // 4. height maps
-        std::vector<Texture> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height");
-        textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
+        loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height", textures);
 
 
 
@@ -184,23 +179,19 @@ private:
 
     // checks all material textures of a given type and loads the textures if they're not loaded yet.
     // the required info is returned as a Texture struct.
-    vector<Texture> loadMaterialTextures(aiMaterial *mat, aiTextureType type, string typeName)
+    void loadMaterialTextures(aiMaterial *mat, aiTextureType type, const string& typeName, vector<Texture> &textures)
     {
-        vector<Texture> textures;
         for(unsigned int i = 0; i < mat->GetTextureCount(type); i++)
         {
             aiString str;
             mat->GetTexture(type, i, &str);
             // check if texture was loaded before and if so, continue to next iteration: skip loading a new texture
             bool skip = false;
-            for(unsigned int j = 0; j < textures_loaded.size(); j++)
+            auto it = loaded_textures_map.find(str.C_Str());
+            if(it != loaded_textures_map.end())
             {
-                if(std::strcmp(textures_loaded[j].path.data(), str.C_Str()) == 0)
-                {
-                    textures.push_back(textures_loaded[j]);
-                    skip = true; // a texture with the same filepath has already been loaded, continue to next one. (optimization)
-                    break;
-                }
+                skip=true;
+                textures.push_back(it->second);
             }
             if(!skip)
             {   // if texture hasn't been loaded already, load it
@@ -209,10 +200,9 @@ private:
                 texture.type = typeName;
                 texture.path = str.C_Str();
                 textures.push_back(texture);
-                textures_loaded.push_back(texture);  // store it as texture loaded for entire model, to ensure we won't unnecesery load duplicate textures.
+                loaded_textures_map[str.C_Str()] = texture;
             }
         }
-        return textures;
     }
 };
 
