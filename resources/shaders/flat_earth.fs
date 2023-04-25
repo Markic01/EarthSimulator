@@ -34,6 +34,10 @@ struct Material {
 in vec2 TexCoords;
 in vec3 Normal;
 in vec3 FragPos;
+in vec3 TangentSunLightPos;
+in vec3 TangentMoonLightPos;
+in vec3 TangentViewPos;
+in vec3 TangentFragPos;
 
 uniform DirectionalLight directionalLight;
 uniform SpotLight moonLight;
@@ -42,9 +46,9 @@ uniform Material material;
 
 uniform vec3 viewPosition;
 
-vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
+vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir, vec3 TLPos)
 {
-    vec3 lightDir = normalize(light.position - fragPos);
+    vec3 lightDir = normalize(TLPos - fragPos);
 
        vec3 ambient = light.ambient * vec3(texture(material.texture_diffuse1, TexCoords));
 
@@ -65,7 +69,7 @@ vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
        specular *= intensity;
 
        // attenuation
-       float distance    = length(light.position - FragPos);
+       float distance    = length(TLPos - FragPos);
        float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
 
        ambient  *= attenuation;
@@ -92,14 +96,11 @@ vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal, vec3 fragPos, vec
 
 void main()
 {
-//     vec3 normal = texture(material.texture_normal1, TexCoords).rgb;
-//     normal = normalize(normal * 2.0 - 1.0);
-//     tried implementing normal mapping but the outcome wasn't as expected :(
-
-    vec3 normal = normalize(Normal);
-    vec3 viewDir = normalize(viewPosition - FragPos);
-    vec3 result = CalcDirectionalLight(directionalLight, normal, FragPos, viewDir);
-    result += CalcSpotLight(sunLight, normal, FragPos, viewDir);
-    result += CalcSpotLight(moonLight, normal, FragPos, viewDir);
+    vec3 normal = texture(material.texture_normal1, TexCoords).rgb;
+    normal = normalize(normal * 2.0 - 1.0);
+    vec3 viewDir = normalize(TangentViewPos - TangentFragPos);
+    vec3 result = CalcDirectionalLight(directionalLight, normal, TangentFragPos, viewDir);
+    result += CalcSpotLight(sunLight, normal, TangentFragPos, viewDir, TangentSunLightPos);
+    result += CalcSpotLight(moonLight, normal, TangentFragPos, viewDir, TangentMoonLightPos);
     FragColor = vec4(result, 1.0);
 }
