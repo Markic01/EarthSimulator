@@ -26,5 +26,4 @@ A very realistic Earth simulator implemented using OpenGL API
 ## Implemented
 
 - [x] Cubemaps
-- [ ] Normal mapping
-- [ ] Bloom
+- [x] Bloom
